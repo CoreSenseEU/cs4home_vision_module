@@ -1,0 +1,21 @@
+vision_recognition:
+  ros__parameters:
+    core: vision_recognition
+    afferent: vision_input
+    vision_input:
+      topics:
+        [
+          "/yolo/detections_3d",
+          "/head_front_camera/rgb/image_raw",
+        ]
+      types:
+        [
+          "yolo_msgs/msg/DetectionArray",
+          "sensor_msgs/msg/Image",
+        ]
+    efferent: vision_output
+    vision_output:
+      topics: ["/vision_description"]
+      types: ["std_msgs/msg/String"]
+    meta: vision_meta
+    coupling: vision_coupling
