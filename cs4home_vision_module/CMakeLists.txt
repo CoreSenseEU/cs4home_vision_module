@@ -49,8 +49,8 @@ add_library(vision_output SHARED src/VisionOutput.cpp)
 ament_target_dependencies(vision_output ${dependencies} ${test_dependencies})
 
 # META
-add_library(audio_meta SHARED src/AudioMeta.cpp)
-ament_target_dependencies(audio_meta ${dependencies} ${test_dependencies})
+add_library(vision_meta SHARED src/VisionMeta.cpp)
+ament_target_dependencies(vision_meta ${dependencies} ${test_dependencies})
 
 # COUPLING
 add_library(vision_coupling SHARED src/VisionCoupling.cpp)

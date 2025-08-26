@@ -15,8 +15,6 @@
 #include "cs4home_core/Efferent.hpp"
 #include "cs4home_core/macros.hpp"
 
-#include "sound_msgs/msg/sound_detection.hpp"
-
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
