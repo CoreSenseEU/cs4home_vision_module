@@ -43,6 +43,7 @@ colcon build --cmake-args -DGGML_CUDA=ON
 ## Launch
 
 ```bash
+ros2 launch llama_bringup minicpm-2.6.launch.py
 ros2 launch cs4home_vision_module launch_vision.launch.py
 ```
 

@@ -20,7 +20,10 @@
 #include "std_msgs/msg/string.hpp"
 
 #include "rclcpp/macros.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
+
+#include "llama_msgs/action/generate_response.hpp"
 
 using std::placeholders::_1;
 using namespace std::chrono_literals;
@@ -51,6 +54,48 @@ public:
       std::shared_ptr<sensor_msgs::msg::Image> image_msg) {
 
     RCLCPP_INFO(parent_->get_logger(), "[VisionRecognition]: Processing data...");
+    llama_msgs::action::GenerateResponse::Goal goal;
+    goal.prompt = R"(This image was captured by a robot's camera.
+    Describe briefly in this exact format:
+    Environment: [Which room in the apartment]
+    Objects: [List object types present, no counts]
+    People: [Present/None]
+    Activity: [If obvious, else 'None']
+    Risk: [If obvious, else 'None']
+    Keep it short.)";
+    goal.images.push_back(*image_msg);
+    goal.sampling_config.temp = 0.0;
+    goal.reset = true;
+
+    rclcpp_action::Client<llama_msgs::action::GenerateResponse>::SendGoalOptions opts;
+    opts.goal_response_callback =
+      [this](std::shared_ptr<rclcpp_action::ClientGoalHandle<llama_msgs::action::GenerateResponse>> gh) {
+        if (!gh) {
+          RCLCPP_ERROR(parent_->get_logger(), "Goal rechazado por el servidor.");
+        } else {
+          RCLCPP_INFO(parent_->get_logger(), "Goal aceptado. Esperando resultado...");
+        }
+      };
+
+    opts.result_callback =
+      [this](const rclcpp_action::ClientGoalHandle<llama_msgs::action::GenerateResponse>::WrappedResult & result) {
+        using rclcpp_action::ResultCode;
+        if (result.code != ResultCode::SUCCEEDED) {
+          RCLCPP_ERROR(parent_->get_logger(), "Action terminó con estado: %d", static_cast<int>(result.code));
+          return;
+        }
+
+        // Se asume que el result tiene campo 'response.text'
+        const auto & res = result.result;
+        if (res && !res->response.text.empty()) {
+          RCLCPP_INFO(parent_->get_logger(), "Camera description - %s", res->response.text.c_str());
+        } else {
+          RCLCPP_WARN(parent_->get_logger(), "Resultado recibido pero sin texto en response.");
+        }
+      };
+
+    // Enviar goal (asíncrono)
+    auto future_goal_handle = client_->async_send_goal(goal, opts);
   }
 
   
@@ -80,6 +125,12 @@ public:
    */
   bool configure() override {
     RCLCPP_DEBUG(parent_->get_logger(), "Core configured");
+    client_ = rclcpp_action::create_client<llama_msgs::action::GenerateResponse>(parent_, "/llama/generate_response");
+    RCLCPP_INFO(parent_->get_logger(), "Esperando servidor de acción en /llama/generate_response...");
+    if (!client_->wait_for_action_server(10s)) {
+      RCLCPP_WARN(parent_->get_logger(), "Servidor de acción no disponible tras 10s. Aún puedes dejar el nodo corriendo.");
+      return false;
+    }
     return true;
   }
 
@@ -111,6 +162,7 @@ public:
 private:
   rclcpp::TimerBase::SharedPtr
       timer_; /**< Timer for periodic execution of `timer_callback`. */
+  rclcpp_action::Client<llama_msgs::action::GenerateResponse>::SharedPtr client_;
   const double TIME_SYNC_TOLERANCE = 1.0;
 };
 
