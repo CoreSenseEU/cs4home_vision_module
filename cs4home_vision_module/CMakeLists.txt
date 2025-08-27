@@ -15,6 +15,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(yolo_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(llama_msgs REQUIRED)
 
 set(dependencies
   ament_cmake
@@ -25,6 +26,7 @@ set(dependencies
   yolo_msgs
   std_msgs
   sensor_msgs
+  llama_msgs
 )
 
 set(SOURCES

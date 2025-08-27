@@ -1,0 +1,9 @@
+repositories:
+  ThirdParty/yolo_ros:
+    type: git
+    url: https://github.com/mgonzs13/yolo_ros.git
+    version: main
+  cs4home_architecture:
+    type: git
+    url: https://github.com/CoreSenseEU/cs4home_architecture
+    version: humble

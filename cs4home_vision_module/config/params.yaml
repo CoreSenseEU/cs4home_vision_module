@@ -5,7 +5,7 @@ vision_recognition:
     vision_input:
       topics:
         [
-          "/yolo/detections_3d",
+          "/yolo/detections",
           "/head_front_camera/rgb/image_raw",
         ]
       types:
