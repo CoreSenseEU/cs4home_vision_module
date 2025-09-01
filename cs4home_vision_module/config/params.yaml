@@ -16,6 +16,6 @@ vision_recognition:
     efferent: vision_output
     vision_output:
       topics: ["/vision_description"]
-      types: ["std_msgs/msg/String"]
+      types: ["cs4home_msgs/msg/ContextDescription"]
     meta: vision_meta
     coupling: vision_coupling

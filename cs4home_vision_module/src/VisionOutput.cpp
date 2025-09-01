@@ -15,6 +15,8 @@
 #include "cs4home_core/Efferent.hpp"
 #include "cs4home_core/macros.hpp"
 
+#include "cs4home_msgs/msg/context_description.hpp"
+
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -34,7 +36,7 @@ public:
    * VisionOutput instance.
    */
   explicit VisionOutput(rclcpp_lifecycle::LifecycleNode::SharedPtr parent)
-      : Efferent("Vision_output", parent) {
+      : Efferent("vision_output", parent) {
     RCLCPP_INFO(parent_->get_logger(), "Efferent created: [VisionOutput]");
   }
 

@@ -18,6 +18,8 @@
 #include "yolo_msgs/msg/detection_array.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "cs4home_msgs/msg/entity.hpp"
+#include "cs4home_msgs/msg/context_description.hpp"
 
 #include "rclcpp/macros.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -46,16 +48,26 @@ public:
   explicit VisionRecognition(rclcpp_lifecycle::LifecycleNode::SharedPtr parent)
       : Core("vision_recognition", parent) {
     RCLCPP_DEBUG(parent_->get_logger(), "Core created: [VisionRecognition]");
-    
+    context_ = std::make_shared<cs4home_msgs::msg::ContextDescription>();
+    context_->source = "vision";
   }
 
   void process_vision_data(
       std::shared_ptr<yolo_msgs::msg::DetectionArray> yolo_msg,
       std::shared_ptr<sensor_msgs::msg::Image> image_msg) {
 
+    for (int i=0; i<yolo_msg->detections.size(); i++){
+      cs4home_msgs::msg::Entity entity;
+      entity.class_name = yolo_msg->detections[i].class_name;
+      entity.location.position.x = yolo_msg->detections[i].bbox.center.position.x;
+      entity.location.position.y = yolo_msg->detections[i].bbox.center.position.y;
+      context_->entities.push_back(entity);
+    }
+
     RCLCPP_INFO(parent_->get_logger(), "[VisionRecognition]: Processing data...");
     llama_msgs::action::GenerateResponse::Goal goal;
-    goal.prompt = R"(This image was captured by a robot's camera.
+    goal.prompt = R"(<__media__>
+    This image was captured by a robot's camera.
     Describe briefly in this exact format:
     Environment: [Which room in the apartment]
     Objects: [List object types present, no counts]
@@ -64,7 +76,7 @@ public:
     Risk: [If obvious, else 'None']
     Keep it short.)";
     goal.images.push_back(*image_msg);
-    goal.sampling_config.temp = 0.0;
+    goal.sampling_config.temp = 0.7;
     goal.reset = true;
 
     rclcpp_action::Client<llama_msgs::action::GenerateResponse>::SendGoalOptions opts;
@@ -88,7 +100,11 @@ public:
         // Se asume que el result tiene campo 'response.text'
         const auto & res = result.result;
         if (res && !res->response.text.empty()) {
-          RCLCPP_INFO(parent_->get_logger(), "Camera description - %s", res->response.text.c_str());
+          RCLCPP_INFO(parent_->get_logger(), "Context description - %s", res->response.text.c_str());
+
+          context_->scene_description = res->response.text.c_str();
+
+          efferent_->publish(0, context_);
         } else {
           RCLCPP_WARN(parent_->get_logger(), "Resultado recibido pero sin texto en response.");
         }
@@ -96,6 +112,7 @@ public:
 
     // Enviar goal (asíncrono)
     auto future_goal_handle = client_->async_send_goal(goal, opts);
+    
   }
 
   
@@ -112,6 +129,12 @@ public:
 
     auto detections_msg = afferent_->get_msg<yolo_msgs::msg::DetectionArray>(0);
     auto image_msg = afferent_->get_msg<sensor_msgs::msg::Image>(1);
+    if(image_msg){
+      RCLCPP_INFO(parent_->get_logger(), "[VisionRecognition] image information");
+    }
+    if(detections_msg){
+      RCLCPP_INFO(parent_->get_logger(), "[VisionRecognition] 3d information");
+    }
     if (detections_msg && image_msg){
       RCLCPP_INFO(parent_->get_logger(), "[VisionRecognition] Visual information");
       process_vision_data(detections_msg, image_msg);
@@ -143,7 +166,7 @@ public:
    */
   bool activate() override {
     timer_ = parent_->create_wall_timer(
-        1000ms, std::bind(&VisionRecognition::timer_callback, this));
+        10000ms, std::bind(&VisionRecognition::timer_callback, this));
     return true;
   }
 
@@ -163,6 +186,7 @@ private:
   rclcpp::TimerBase::SharedPtr
       timer_; /**< Timer for periodic execution of `timer_callback`. */
   rclcpp_action::Client<llama_msgs::action::GenerateResponse>::SharedPtr client_;
+  std::shared_ptr<cs4home_msgs::msg::ContextDescription> context_;
   const double TIME_SYNC_TOLERANCE = 1.0;
 };
 

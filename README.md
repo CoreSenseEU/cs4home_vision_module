@@ -43,8 +43,15 @@ colcon build --cmake-args -DGGML_CUDA=ON
 ## Launch
 
 ```bash
-ros2 launch llama_bringup minicpm-2.6.launch.py
+ros2 llama launch /root/ros2_ws/src/llama_bringup/models/MiniCPM-2.6.yaml
+ros2 launch yolo_bringup yolo.launch.py
 ros2 launch cs4home_vision_module launch_vision.launch.py
+```
+
+Activate the module:
+```bash
+ros2 lifecycle set /vision_recognition configure
+ros2 lifecycle set /vision_recognition activate
 ```
 
 The configuration for the vision cognitive module is under the `cs4home_vision_module/config/params.yaml`
@@ -68,7 +75,7 @@ vision_recognition:
     efferent: vision_output
     vision_output:
       topics: ["/vision_description"]
-      types: ["std_msgs/msg/String"]
+      types: ["cs4home_msgs/msg/ContextDescription"]
     meta: vision_meta
     coupling: vision_coupling
 ```
