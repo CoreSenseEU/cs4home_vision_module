@@ -17,6 +17,7 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(llama_msgs REQUIRED)
 find_package(cs4home_msgs REQUIRED)
+find_package(ros_typedb_msgs REQUIRED)
 
 set(dependencies
   ament_cmake
@@ -29,6 +30,7 @@ set(dependencies
   sensor_msgs
   llama_msgs
   cs4home_msgs
+  ros_typedb_msgs
 )
 
 set(SOURCES

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iomanip>
+#include <sstream>
+#include <ctime>
+
 #include "cs4home_core/Core.hpp"
 #include "cs4home_core/macros.hpp"
 
@@ -20,6 +24,7 @@
 #include "std_msgs/msg/string.hpp"
 #include "cs4home_msgs/msg/entity.hpp"
 #include "cs4home_msgs/msg/context_description.hpp"
+#include "ros_typedb_msgs/srv/query.hpp"
 
 #include "rclcpp/macros.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
@@ -105,6 +110,54 @@ public:
           context_->scene_description = res->response.text.c_str();
 
           efferent_->publish(0, context_);
+          RCLCPP_INFO(parent_->get_logger(), "Efferent sent");
+
+          // DATABASE
+          auto request = std::make_shared<ros_typedb_msgs::srv::Query::Request>();
+          request->query_type = ros_typedb_msgs::srv::Query::Request::INSERT;
+
+          RCLCPP_INFO(parent_->get_logger(), "Create request");
+
+          auto now = parent_->now();
+          std::time_t t = now.seconds();
+          std::tm tm = *std::gmtime(&t);
+          std::ostringstream ts;
+          ts << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S");
+          // start building the TypeQL insert
+          std::stringstream ss;
+          ss << "insert "
+          << "$sc isa scene, has description \"" << context_->scene_description
+          << "\", has timestamp " << ts.str() << "; ";
+
+
+
+          RCLCPP_INFO(parent_->get_logger(), "Scene");
+
+          // now entities from YOLO
+          for (size_t i = 0; i < context_->entities.size(); i++) {
+            const auto & ent = context_->entities[i];
+            std::string var = "$e" + std::to_string(i);
+
+            ss << var << " isa object, has object-label \"" << ent.class_name << "\", "
+              << "has x-pos " << ent.location.position.x << ", "
+              << "has y-pos " << ent.location.position.y << ", "
+              << "has z-pos 0.0; ";
+
+
+            ss << "(context: $sc, observed: " << var
+              << ") isa perception, has source-type \"vision\"; ";
+
+          }
+
+          RCLCPP_INFO(parent_->get_logger(), "entities");
+
+          RCLCPP_INFO(parent_->get_logger(), "query: ", ss.str().c_str());
+
+          request->query = ss.str();
+          RCLCPP_INFO(parent_->get_logger(), "sending");
+
+          auto future_request = typedb_client_->async_send_request(request);
+
         } else {
           RCLCPP_WARN(parent_->get_logger(), "Resultado recibido pero sin texto en response.");
         }
@@ -149,12 +202,15 @@ public:
   bool configure() override {
     RCLCPP_DEBUG(parent_->get_logger(), "Core configured");
     client_ = rclcpp_action::create_client<llama_msgs::action::GenerateResponse>(parent_, "/llama/generate_response");
+    typedb_client_ = parent_->create_client<ros_typedb_msgs::srv::Query>("/ros_typedb_interface/query");
     RCLCPP_INFO(parent_->get_logger(), "Esperando servidor de acción en /llama/generate_response...");
     if (!client_->wait_for_action_server(10s)) {
       RCLCPP_WARN(parent_->get_logger(), "Servidor de acción no disponible tras 10s. Aún puedes dejar el nodo corriendo.");
       return false;
     }
     return true;
+    
+
   }
 
   /**
@@ -186,6 +242,7 @@ private:
   rclcpp::TimerBase::SharedPtr
       timer_; /**< Timer for periodic execution of `timer_callback`. */
   rclcpp_action::Client<llama_msgs::action::GenerateResponse>::SharedPtr client_;
+  rclcpp::Client<ros_typedb_msgs::srv::Query>::SharedPtr typedb_client_;
   std::shared_ptr<cs4home_msgs::msg::ContextDescription> context_;
   const double TIME_SYNC_TOLERANCE = 1.0;
 };

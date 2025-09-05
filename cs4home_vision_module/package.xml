@@ -15,6 +15,8 @@
   <depend>yolo_msgs</depend>
   <depend>std_msgs</depend>
   <depend>llama_msgs</depend>
+  <depend>cs4home_msgs</depend>
+  <depend>ros_typedb_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
