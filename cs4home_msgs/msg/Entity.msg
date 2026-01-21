@@ -1,2 +1,4 @@
 string class_name
 geometry_msgs/Pose location
+string proximity_bin
+float32 distance_to_robot
