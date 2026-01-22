@@ -14,6 +14,9 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ContextDescription.msg"
   "msg/Entity.msg"
+  "msg/RiskFactorProjection.msg"
+  "msg/RiskAssessment.msg"
+  "msg/ActionPriorityUpdate.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 
