@@ -1,60 +1,71 @@
 # cs4home_vision_module
-Use case of the cs4home architecture prototype focused on the cognitive module of visual perception
 
-## Prerequisites
+This repository implements the CoreSense4Home visual-context cognitive module. It combines camera images and YOLO detections, uses a vision-language model to describe the scene and publishes a structured `ContextDescription` for downstream modules.
 
-- [YOLO](https://github.com/mgonzs13/yolo_ros)
-- [Llama](https://github.com/mgonzs13/llama_ros/tree/humble?tab=readme-ov-file)
+The existing package and namespace names are retained unchanged.
 
-## Docker 
-Build the llama_ros docker or download and image from [DockerHub](https://hub.docker.com/r/mgons/llama_ros/tags). You can choose to build llama_ros with CUDA (USE_CUDA) and choose the CUDA version (CUDA_VERSION). Remember that you have to use DOCKER_BUILDKIT=0 to compile llama_ros with CUDA when building the image.
+## CoreSense role
 
+The terms below follow the [CoreSense Ontology (CSO)](https://w3id.org/coresense/cso).
 
-```bash
-DOCKER_BUILDKIT=0 docker build -t llama_ros --build-arg USE_CUDA=1 --build-arg CUDA_VERSION=12-6 .
-```
+- The camera is a [Sensor](https://w3id.org/coresense/cso#Sensor) that acquires visual information about the environment.
+- Detection fusion and scene description form a [Cognitive Function](https://w3id.org/coresense/cso#CognitiveFunction).
+- The module provides a visual-context [Cognitive Capability](https://w3id.org/coresense/cso#CognitiveCapability).
+- The result is [Context](https://w3id.org/coresense/cso#Context): information retained because it is relevant to interpretation, evaluation and action.
+- The scene description assigns [Meaning](https://w3id.org/coresense/cso#Meaning) to the visual evidence for use by other cognitive modules.
 
-Run the docker container with [Rocker](https://github.com/osrf/rocker)
+## Data flow
 
-```bash
-cd ~/ros2_ws/src/cs4home_vision_module
-rocker --nvidia --x11 \
-  --network host --ipc host \
-  --device /dev/snd \
-  --device /dev/bus/usb/005/005 \
-  --group-add audio \
-  --volume ~/audio_ws:/root/ros2_ws \
-  --env CYCLONEDDS_URI=file:///root/cyclone_config.xml \
-  --volume ~/cyclone_config.xml:/root/cyclone_config.xml:ro \
-  --privileged \
- llama_ros
-```
+~~~mermaid
+flowchart LR
+    camera["Camera image"] --> vision["VisionRecognition"]
+    detections["YOLO detections"] --> vision
+    model["Vision-language model"] --> vision
+    vision --> entities["Structured entities"]
+    vision --> description["Scene description"]
+    entities --> context["ContextDescription"]
+    description --> context
+    context --> downstream["Contextualizer or robot task"]
+~~~
 
-## Installation
+## Requirements and build
 
-```bash
-cd ~/ros2_ws/src
+Use Ubuntu 22.04 and ROS 2 Humble. The workspace must contain YOLO ROS, `llama_ros`, `cs4home_architecture` and the TypeDB ROS interface used by the module. A GPU is optional but recommended for local vision-language model execution.
+
+~~~bash
+mkdir -p ~/cs4home_ws/src
+cd ~/cs4home_ws/src
 git clone https://github.com/CoreSenseEU/cs4home_vision_module.git
 vcs import --recursive < cs4home_vision_module/thirparty.repos
-cd ~/ros2_ws
-colcon build --cmake-args -DGGML_CUDA=ON
-```
+cd ..
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --symlink-install
+source install/setup.bash
+~~~
 
-## Launch
+The dependency manifest is named `thirparty.repos` in the current repository and is referenced without renaming it.
 
-```bash
-ros2 llama launch /root/ros2_ws/src/llama_bringup/models/MiniCPM-2.6.yaml
+## Run
+
+Start a `llama_ros` model that provides the `/llama/generate_response` action, then start YOLO:
+
+~~~bash
 ros2 launch yolo_bringup yolo.launch.py
-ros2 launch cs4home_vision_module launch_vision.launch.py
-```
+~~~
 
-Activate the module:
-```bash
+Launch and activate the visual-context module:
+
+~~~bash
+ros2 launch cs4home_vision_module launch_vision.launch.py
 ros2 lifecycle set /vision_recognition configure
 ros2 lifecycle set /vision_recognition activate
-```
+~~~
 
-The configuration for the vision cognitive module is under the `cs4home_vision_module/config/params.yaml`
+Once active, the module periodically combines the latest image and detections into a contextual description.
+
+## Module configuration
+
+The vision cognitive module uses the following structure:
 
 ```yaml
 vision_recognition:
